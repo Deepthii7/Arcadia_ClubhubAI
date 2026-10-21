@@ -15,7 +15,7 @@ export interface Club {
 }
 
 export interface EventData {
-  id: number
+  id: number | string
   title: string
   category: string
   org: string
@@ -23,6 +23,16 @@ export interface EventData {
   date: string
   time: string
   venue: string
+  registrationFormUrl?: string
+  startTime?: string
+  endTime?: string
+  eligibility?: string
+  participationType?: 'individual' | 'team'
+  teamSize?: number
+  capacity?: number
+  prizes?: string
+  coordinators?: { name?: string; phone?: string; email?: string }[]
+  registrationDeadline?: string
   tags: string[]
   color: CardColor
   rotation: number

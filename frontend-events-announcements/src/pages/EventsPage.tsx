@@ -3,11 +3,18 @@ import { useEffect, useState } from 'react'
 import PinnedCard from '../components/PinnedCard'
 import type { EventData } from '../data'
 function formatEventDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', {
+  const parsedDate = new Date(date)
+  if (Number.isNaN(parsedDate.getTime())) return 'Date to be announced'
+  return parsedDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function formatEventTime(startTime?: string, endTime?: string) {
+  if (!startTime) return 'Time TBA'
+  return endTime ? `${startTime} — ${endTime}` : startTime
 }
 
 const CATEGORIES = ['ALL', 'TECHNICAL' , 'CULTURAL', 'SPORTS', 'AI']
@@ -30,11 +37,21 @@ export default function EventsPage({ onSelectEvent }: EventsPageProps) {
           id: event._id,
           title: event.title,
           category: event.category || event.clubId?.category || 'GENERAL',
-          org: event.clubId?.name || 'ClubHub',
-          description: event.description,
-          date: new Date(event.date).toLocaleDateString(),
-          time: 'Time TBA',
-          venue: event.venue,
+          org: event.clubId?.name || 'Club information unavailable',
+          description: event.description || '',
+          date: event.date,
+          time: formatEventTime(event.startTime, event.endTime),
+          venue: event.venue || '',
+          registrationFormUrl: event.registrationFormUrl || '',
+          startTime: event.startTime || undefined,
+          endTime: event.endTime || undefined,
+          eligibility: event.eligibility || undefined,
+          participationType: event.participationType || undefined,
+          teamSize: event.teamSize,
+          capacity: event.capacity,
+          prizes: event.prizes || undefined,
+          coordinators: event.coordinators || [],
+          registrationDeadline: event.registrationDeadline || undefined,
           tags: [],
           color: '#E04F3D',
           rotation: 0,

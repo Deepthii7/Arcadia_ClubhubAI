@@ -12,7 +12,26 @@ const eventSchema = new mongoose.Schema(
       required: true,
     },
     bannerUrl: { type: String, default: "" },
+    registrationFormUrl: { type: String, default: "" },
     capacity: { type: Number, default: 0 }, // 0 = unlimited
+    startTime: { type: String, default: "" },
+    endTime: { type: String, default: "" },
+    eligibility: { type: String, default: "" },
+    participationType: {
+      type: String,
+      enum: ["individual", "team"],
+    },
+    teamSize: { type: Number },
+    prizes: { type: String, default: "" },
+    coordinators: [
+      {
+        _id: false,
+        name: { type: String, default: "" },
+        phone: { type: String, default: "" },
+        email: { type: String, default: "" },
+      },
+    ],
+    registrationDeadline: { type: Date },
   },
   { timestamps: true }
 );

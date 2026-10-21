@@ -21,6 +21,12 @@ export interface Club {
 
 export type ClubInput = Omit<Club, "_id" | "createdAt" | "updatedAt">;
 
+export interface EventCoordinator {
+  name: string;
+  phone: string;
+  email: string;
+}
+
 export interface ClubEvent {
   _id: string;
   title: string;
@@ -30,6 +36,15 @@ export interface ClubEvent {
   clubId: Club | string;
   bannerUrl?: string;
   capacity?: number;
+  registrationFormUrl?: string;
+  startTime?: string;
+  endTime?: string;
+  eligibility?: string;
+  participationType?: "individual" | "team";
+  teamSize?: number;
+  prizes?: string;
+  coordinators?: EventCoordinator[];
+  registrationDeadline?: string;
   createdAt: string;
   updatedAt: string;
 }

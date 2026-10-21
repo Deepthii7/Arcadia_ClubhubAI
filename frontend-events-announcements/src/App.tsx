@@ -5,7 +5,7 @@ import HomePage from './pages/HomePage'
 import DirectoryPage from './pages/DirectoryPage'
 import BoardPage from './pages/BoardPage'
 import EventsPage from './pages/EventsPage'
-import RegistrationModal from './components/RegistrationModal'
+import EventDetailsPage from './pages/EventDetailsPage'
 import type { Page, EventData } from './data'
 
 export default function App() {
@@ -39,17 +39,19 @@ export default function App() {
         <BoardPage />
       )}
       {page === 'events' && (
-        <EventsPage onSelectEvent={setSelectedEvent} />
+        selectedEvent ? (
+          <EventDetailsPage
+            event={selectedEvent}
+            onBack={() => setSelectedEvent(null)}
+          />
+        ) : (
+          <EventsPage onSelectEvent={setSelectedEvent} />
+        )
       )}
 
       <Footer onNavigate={navigate} />
 
-      {selectedEvent && (
-        <RegistrationModal
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-        />
-      )}
+
     </div>
   )
 }

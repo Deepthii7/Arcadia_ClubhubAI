@@ -34,8 +34,27 @@ export default function HomePage({ onNavigate, onSelectEvent }: HomePageProps) {
     api.get('/events')
       .then(response => {
         const events = response.data.slice(0, 3).map((event: any) => ({
-          ...event,
           id: event._id,
+          title: event.title,
+          description: event.description || '',
+          date: event.date,
+          time: event.startTime
+            ? event.endTime
+              ? `${event.startTime} — ${event.endTime}`
+              : event.startTime
+            : 'Time TBA',
+          venue: event.venue || '',
+          org: event.clubId?.name || 'Club information unavailable',
+          registrationFormUrl: event.registrationFormUrl || '',
+          startTime: event.startTime || undefined,
+          endTime: event.endTime || undefined,
+          eligibility: event.eligibility || undefined,
+          participationType: event.participationType || undefined,
+          teamSize: event.teamSize,
+          capacity: event.capacity,
+          prizes: event.prizes || undefined,
+          coordinators: event.coordinators || [],
+          registrationDeadline: event.registrationDeadline || undefined,
           color: '#E04F3D',
           rotation: 0,
           category: event.clubId?.category || 'EVENT',

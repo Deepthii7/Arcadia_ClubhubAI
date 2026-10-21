@@ -43,6 +43,15 @@ Database: **MongoDB** (Atlas), accessed via **Mongoose**.
 | `clubId`      | ObjectId | ✅        | References `clubs._id`                                |
 | `bannerUrl`   | String   | –        | Event banner image URL                                |
 | `capacity`    | Number   | –        | Max registrations, `0` = unlimited (default `0`)      |
+| `registrationFormUrl` | String | – | External registration form URL, such as Google Forms |
+| `startTime`   | String   | –        | Local start time in `HH:mm` format                    |
+| `endTime`     | String   | –        | Local end time in `HH:mm` format                      |
+| `eligibility` | String   | –        | Departments, academic years, or other eligibility     |
+| `participationType` | String | – | `individual` or `team`                                |
+| `teamSize`    | Number   | –        | Maximum members per team                              |
+| `prizes`      | String   | –        | Prize and reward details                              |
+| `coordinators`| Array    | –        | Coordinator objects with optional `name`, `phone`, and `email` |
+| `registrationDeadline` | Date | – | Registration deadline                                 |
 | `createdAt`   | Date     | auto     | Timestamp                                              |
 | `updatedAt`   | Date     | auto     | Timestamp                                              |
 
