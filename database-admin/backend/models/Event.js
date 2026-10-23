@@ -6,6 +6,10 @@ const eventSchema = new mongoose.Schema(
     description: { type: String, required: true },
     date: { type: Date, required: true },
     venue: { type: String, required: true },
+    category: {
+      type: String,
+      enum: ["Technical", "Non-Technical"],
+    },
     clubId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Club",

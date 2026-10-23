@@ -1,20 +1,29 @@
-export type Category =
-  | "Technical"
-  | "Cultural"
-  | "Sports"
-  | "Literary"
-  | "Arts"
-  | "Social"
-  | "Other";
+export type Category = "Technical" | "Non-Technical";
+
+export interface ClubTeamMember {
+  name: string;
+  role: string;
+}
+
+export type RecruitmentStatus = "Open" | "Closed";
 
 export interface Club {
   _id: string;
   name: string;
   description: string;
-  category: Category;
+  category: string;
   logoUrl?: string;
   contactEmail?: string;
   isActive?: boolean;
+  tagline?: string;
+  facultyCoordinator?: string;
+  teamMembers?: ClubTeamMember[];
+  domains?: string[];
+  memberCount?: number | null;
+  meetingFrequency?: string;
+  linkedinUrl?: string;
+  recruitmentStatus?: RecruitmentStatus | null;
+  recruitmentFormUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,12 +36,15 @@ export interface EventCoordinator {
   email: string;
 }
 
+export type EventCategory = "Technical" | "Non-Technical";
+
 export interface ClubEvent {
   _id: string;
   title: string;
   description: string;
   date: string;
   venue: string;
+  category?: string;
   clubId: Club | string;
   bannerUrl?: string;
   capacity?: number;

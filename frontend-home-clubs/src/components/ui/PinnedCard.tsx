@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Users, MapPin } from "lucide-react";
 import type { Club } from "@/types/club";
 import { getCoverColor } from "@/lib/colorMap";
+import { getClubCategoryLabel } from "@/lib/clubCategory";
 
 interface PinnedCardProps {
   club: Club;
@@ -27,7 +28,7 @@ export default function PinnedCard({ club, rotate = "left" }: PinnedCardProps) {
 
       <div className={`flex h-24 items-end justify-between border-b-2 border-ink px-4 pb-3 ${cover.bg}`}>
         <span className={`font-mono text-xs uppercase tracking-widest ${cover.text}`}>
-          {club.category}
+          {getClubCategoryLabel(club.category)}
         </span>
         {club.recruiting && (
           <span className="rounded-sm bg-paper-light px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-ink">

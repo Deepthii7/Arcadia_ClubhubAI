@@ -8,6 +8,7 @@ import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Badge, EmptyState } from "@/components/ui/Feedback";
 import EventForm from "@/components/forms/EventForm";
+import { getEventCategoryLabel } from "@/lib/eventCategory";
 
 export default function EventsPage() {
   const { data: events = [], isLoading } = useEvents();
@@ -80,6 +81,9 @@ export default function EventsPage() {
                   </div>
                 </div>
                 <h3 className="font-semibold text-slate-900">{event.title}</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {getEventCategoryLabel(event.category)}
+                </p>
                 <p className="mt-1 text-xs text-slate-400">
                   {typeof event.clubId === "object" ? event.clubId.name : ""}
                 </p>

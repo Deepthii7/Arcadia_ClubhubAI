@@ -34,10 +34,10 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  to="/clubs?category=Technology"
+                  to="/clubs?category=Technical"
                   className="focus-ring rounded-sm text-paper/80 hover:text-paper-light"
                 >
-                  Technology clubs
+                  Technical clubs
                 </Link>
               </li>
             </ul>

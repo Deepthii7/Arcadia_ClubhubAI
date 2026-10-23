@@ -1,12 +1,4 @@
-export type ClubCategory =
-  | "Technology"
-  | "Arts & Culture"
-  | "Sports"
-  | "Academic"
-  | "Music"
-  | "Social Impact"
-  | "Gaming"
-  | "Business";
+export type ClubCategory = "Technical" | "Non-Technical";
 
 export interface MeetingSchedule {
   day: string;
@@ -25,7 +17,7 @@ export interface Club {
   name: string;
   tagline: string;
   description: string;
-  category: ClubCategory;
+  category: ClubCategory | null;
   coverColor: string;
   memberCount: number;
   founded: number;
@@ -40,5 +32,5 @@ export interface Club {
 
 export interface ClubListParams {
   search?: string;
-  category?: ClubCategory | "All";
+  category?: ClubCategory | "All Clubs";
 }

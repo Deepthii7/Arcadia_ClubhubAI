@@ -1,5 +1,6 @@
 import MockAdapter from "axios-mock-adapter";
 import { apiClient } from "./axiosClient";
+import { classifyClubCategory } from "./clubCategory";
 import { mockClubs } from "@/data/mockClubs";
 
 // Simulated network latency so loading states are visible in the demo.
@@ -14,7 +15,10 @@ mock.onGet(/\/clubs$/).reply((config) => {
 
   const search = (rawSearch ?? "").toLowerCase();
 
-  let results = mockClubs;
+  let results = mockClubs.map((club) => ({
+    ...club,
+    category: classifyClubCategory(club.category, club),
+  }));
   if (search) {
     results = results.filter(
       (c) =>
@@ -23,7 +27,7 @@ mock.onGet(/\/clubs$/).reply((config) => {
         c.tags.some((t) => t.toLowerCase().includes(search))
     );
   }
-  if (category && category !== "All") {
+  if (category && category !== "All Clubs") {
     results = results.filter((c) => c.category === category);
   }
   return [200, results];
@@ -34,12 +38,24 @@ mock.onGet(/\/clubs\/[\w-]+$/).reply((config) => {
   const slug = config.url?.split("/").pop();
   const club = mockClubs.find((c) => c.slug === slug);
   if (!club) return [404, { message: "Club not found" }];
-  return [200, club];
+  return [
+    200,
+    {
+      ...club,
+      category: classifyClubCategory(club.category, club),
+    },
+  ];
 });
 
 // GET /categories
 mock.onGet(/\/categories$/).reply(() => {
-  const categories = Array.from(new Set(mockClubs.map((c) => c.category)));
+  const categories = Array.from(
+    new Set(
+      mockClubs
+        .map((club) => classifyClubCategory(club.category, club))
+        .filter((category) => category !== null)
+    )
+  );
   return [200, categories];
 });
 

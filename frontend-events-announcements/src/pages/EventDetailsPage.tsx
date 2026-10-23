@@ -1,5 +1,6 @@
 
 import type { EventData } from '../data'
+import { getEventCategoryLabel } from '../eventCategory'
 
 function formatDate(date: string) {
   const parsedDate = new Date(date)
@@ -82,7 +83,7 @@ export default function EventDetailsPage({
             textTransform: 'uppercase',
           }}
         >
-          {event.category || 'EVENT'} · Hosted by {event.org || 'Club information unavailable'}
+          {getEventCategoryLabel(event.category)} · Hosted by {event.org || 'Club information unavailable'}
         </p>
 
         <h1

@@ -12,6 +12,7 @@ import { useClub } from "@/lib/queries";
 import { getCoverColor } from "@/lib/colorMap";
 import Tag from "@/components/ui/Tag";
 import ErrorState from "@/components/ui/ErrorState";
+import { getClubCategoryLabel } from "@/lib/clubCategory";
 
 export default function ClubDetails() {
   const { slug } = useParams<{ slug: string }>();
@@ -61,7 +62,7 @@ export default function ClubDetails() {
         <div className={`rounded-t-[2px] border-b-2 border-ink px-6 py-10 sm:px-10 sm:py-14 ${cover.bg}`}>
           <div className="flex flex-wrap items-center gap-3">
             <span className={`rounded-sm border border-current px-2.5 py-1 font-mono text-xs uppercase tracking-widest ${cover.text}`}>
-              {club.category}
+              {getClubCategoryLabel(club.category)}
             </span>
             {club.recruiting && (
               <span className="rounded-sm bg-paper-light px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-wide text-ink">

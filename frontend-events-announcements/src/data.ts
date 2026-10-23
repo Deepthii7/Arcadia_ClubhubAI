@@ -17,7 +17,7 @@ export interface Club {
 export interface EventData {
   id: number | string
   title: string
-  category: string
+  category?: string
   org: string
   description: string
   date: string

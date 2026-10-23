@@ -7,24 +7,19 @@ import CardSkeleton from "@/components/ui/CardSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import type { ClubCategory } from "@/types/club";
+import { normalizeCategoryFilter } from "@/lib/clubCategory";
 
-const categories: (ClubCategory | "All")[] = [
-  "All",
-  "Technology",
-  "Arts & Culture",
-  "Sports",
-  "Academic",
-  "Music",
-  "Social Impact",
-  "Gaming",
-  "Business",
+const categories: (ClubCategory | "All Clubs")[] = [
+  "All Clubs",
+  "Technical",
+  "Non-Technical",
 ];
 
 const rotations: Array<"left" | "right" | "none"> = ["left", "right", "none"];
 
 export default function ClubDirectory() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const urlCategory = (searchParams.get("category") as ClubCategory | "All") ?? "All";
+  const urlCategory = normalizeCategoryFilter(searchParams.get("category"));
   const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
 
   // Debounce search input into the query.
@@ -45,9 +40,9 @@ export default function ClubDirectory() {
     [clubs]
   );
 
-  function setCategory(cat: ClubCategory | "All") {
+  function setCategory(cat: ClubCategory | "All Clubs") {
     const next = new URLSearchParams(searchParams);
-    if (cat === "All") next.delete("category");
+    if (cat === "All Clubs") next.delete("category");
     else next.set("category", cat);
     setSearchParams(next, { replace: true });
   }

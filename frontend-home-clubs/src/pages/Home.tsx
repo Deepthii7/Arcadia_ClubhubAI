@@ -6,14 +6,8 @@ import CardSkeleton from "@/components/ui/CardSkeleton";
 import ErrorState from "@/components/ui/ErrorState";
 
 const categories = [
-  "Technology",
-  "Arts & Culture",
-  "Sports",
-  "Academic",
-  "Music",
-  "Social Impact",
-  "Gaming",
-  "Business",
+  "Technical",
+  "Non-Technical",
 ];
 
 const rotations: Array<"left" | "right" | "none"> = ["left", "right", "none"];

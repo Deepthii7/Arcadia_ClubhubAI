@@ -1,6 +1,8 @@
 import type { Club } from "@/types/club";
 
-export const mockClubs: Club[] = [
+type MockClub = Omit<Club, "category"> & { category: string };
+
+export const mockClubs: MockClub[] = [
   {
     id: "1",
     slug: "code-collective",

@@ -2,7 +2,56 @@ import { useEffect, useState } from 'react'
 import PinnedCard from '../components/PinnedCard'
 import api from '../api'
 import type { Page } from '../data'
-const ALL_CATEGORIES = ['ALL', 'TECHNOLOGY', 'ARTS & CULTURE', 'SPORTS', 'ACADEMIC', 'MUSIC', 'SOCIAL IMPACT', 'GAMING', 'BUSINESS']
+import { classifyClubCategory, getClubCategoryLabel } from '../clubCategory'
+
+const CATEGORY_FILTERS = [
+  { value: 'ALL', label: 'All Clubs' },
+  { value: 'Technical', label: 'Technical' },
+  { value: 'Non-Technical', label: 'Non-Technical' },
+] as const
+
+interface ClubTeamMember {
+  name: string
+  role: string
+}
+
+interface DirectoryClub {
+  _id?: string
+  id?: string | number
+  name: string
+  category: string
+  description: string
+  tagline?: string
+  facultyCoordinator?: string
+  teamMembers?: ClubTeamMember[]
+  domains?: string[]
+  memberCount?: number | null
+  members?: number | string
+  meetingFrequency?: string
+  meetDay?: string
+  linkedinUrl?: string
+  recruitmentStatus?: 'Open' | 'Closed' | null
+  recruitmentFormUrl?: string
+  status?: string
+  color?: string
+  rotation?: number
+  isActive?: boolean
+}
+
+function isSafeExternalUrl(value?: string) {
+  if (!value) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' || url.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+function isRecruitmentOpen(club: DirectoryClub) {
+  return club.recruitmentStatus === 'Open' ||
+    (!club.recruitmentStatus && club.status === 'RECRUITING')
+}
 
 interface DirectoryPageProps {
   onNavigate?: (page: Page) => void
@@ -11,23 +60,31 @@ interface DirectoryPageProps {
 export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPageProps) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('ALL')
-  const [clubs, setClubs] = useState<any[]>([])
-  const [selectedClub, setSelectedClub] = useState<any | null>(null)
+  const [clubs, setClubs] = useState<DirectoryClub[]>([])
+  const [selectedClub, setSelectedClub] = useState<DirectoryClub | null>(null)
   useEffect(() => {
     api.get('/clubs')
       .then(response => {
-        console.log('Backend clubs:', response.data)
-        setClubs(response.data)
+        setClubs(response.data as DirectoryClub[])
       })
       .catch(error => {
         console.error('Failed to fetch clubs:', error)
       })
   }, [])
   const filtered = clubs.filter(club => {
-    const matchCat = activeCategory === 'ALL' || club.category === activeCategory
-    const matchSearch = club.name.toLowerCase().includes(search.toLowerCase()) ||
-      club.category.toLowerCase().includes(search.toLowerCase()) ||
-      club.description.toLowerCase().includes(search.toLowerCase())
+    const normalizedSearch = search.trim().toLowerCase()
+    const searchableValues = [
+      club.name,
+      club.category,
+      club.description,
+      club.tagline ?? '',
+      ...(club.domains ?? []),
+    ]
+    const normalizedCategory = classifyClubCategory(club.category, club)
+    const matchCat = activeCategory === 'ALL' || normalizedCategory === activeCategory
+    const matchSearch = searchableValues.some(value =>
+      value.toLowerCase().includes(normalizedSearch)
+    )
     return matchCat && matchSearch
   })
 
@@ -73,13 +130,13 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
 
       {/* Category filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
-        {ALL_CATEGORIES.map(cat => (
+        {CATEGORY_FILTERS.map(({ value, label }) => (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`filter-pill ${activeCategory === cat ? 'active' : ''}`}
+            key={value}
+            onClick={() => setActiveCategory(value)}
+            className={`filter-pill ${activeCategory === value ? 'active' : ''}`}
           >
-            {cat}
+            {label}
           </button>
         ))}
       </div>
@@ -93,16 +150,16 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 36 }}>
         {filtered.map(club => (
           <PinnedCard
-            key={club.id}
-            color={club.color}
-            rotation={club.rotation}
+            key={club._id ?? club.id}
+            color={club.color ?? '#E04F3D'}
+            rotation={club.rotation ?? 0}
             onClick={() => setSelectedClub(club)}
             headerContent={
               <>
                 <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: club.color === '#111111' ? '#fff' : '#111' }}>
-                  {club.category}
+                  {getClubCategoryLabel(club.category, club)}
                 </span>
-                {club.status === 'RECRUITING' && (
+                {isRecruitmentOpen(club) && (
                   <span style={{ backgroundColor: '#fff', border: '1.5px solid #111', padding: '2px 8px', fontSize: 9, fontFamily: 'Space Mono, monospace', fontWeight: 700, letterSpacing: '0.06em', color: '#111' }}>
                     RECRUITING
                   </span>
@@ -117,8 +174,12 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
             }
             footerContent={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 11, color: '#666' }}>👥 {club.members}</span>
-                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 11, color: '#666' }}>📍 {club.meetDay}</span>
+                {(club.memberCount ?? club.members) != null && (
+                  <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 11, color: '#666' }}>👥 {club.memberCount ?? club.members}</span>
+                )}
+                {(club.meetingFrequency || club.meetDay) && (
+                  <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 11, color: '#666' }}>📍 {club.meetingFrequency ?? club.meetDay}</span>
+                )}
               </div>
             }
           />
@@ -131,7 +192,7 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
           <p style={{ fontFamily: 'Space Mono, monospace', fontSize: 12 }}>Try a different search or category.</p>
         </div>
       )}
-          {selectedClub && (
+      {selectedClub && (
         <div
           onClick={() => setSelectedClub(null)}
           style={{
@@ -150,6 +211,8 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
             style={{
               width: '100%',
               maxWidth: 560,
+              maxHeight: 'calc(100vh - 32px)',
+              overflowY: 'auto',
               backgroundColor: '#fff',
               border: '3px solid #111',
               boxShadow: '10px 10px 0 #111',
@@ -157,8 +220,8 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
           >
             <div
               style={{
-                backgroundColor: selectedClub.color,
-                padding: '24px 28px',
+                backgroundColor: selectedClub.color ?? '#E04F3D',
+                padding: '20px 24px',
                 borderBottom: '3px solid #111',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -177,7 +240,7 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
                     color: selectedClub.color === '#111111' ? '#fff' : '#111',
                   }}
                 >
-                  {selectedClub.category}
+                  {getClubCategoryLabel(selectedClub.category, selectedClub)}
                 </p>
 
                 <h2
@@ -187,6 +250,7 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
                     lineHeight: 1.05,
                     margin: 0,
                     color: selectedClub.color === '#111111' ? '#fff' : '#111',
+                    overflowWrap: 'anywhere',
                   }}
                 >
                   {selectedClub.name}
@@ -210,89 +274,96 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
               </button>
             </div>
 
-            <div style={{ padding: 28 }}>
-              <p
-                style={{
-                  fontSize: 15,
-                  lineHeight: 1.7,
-                  color: '#444',
-                  margin: '0 0 24px',
-                }}
-              >
-                {selectedClub.description}
-              </p>
+            <div style={{ padding: 24 }}>
+              {selectedClub.tagline && (
+                <p style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.5, margin: '0 0 12px' }}>
+                  {selectedClub.tagline}
+                </p>
+              )}
+              <section>
+                <h3 style={{ fontFamily: 'Space Mono, monospace', fontSize: 10, letterSpacing: '0.08em', margin: '0 0 8px' }}>
+                  ABOUT THE CLUB
+                </h3>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#444', margin: '0 0 20px', whiteSpace: 'pre-wrap' }}>
+                  {selectedClub.description || 'Overview not provided.'}
+                </p>
+              </section>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 14,
-                  marginBottom: 24,
-                }}
-              >
+              {((selectedClub.memberCount ?? selectedClub.members) != null ||
+                selectedClub.meetingFrequency || selectedClub.meetDay) && (
                 <div
                   style={{
-                    border: '2px solid #111',
-                    padding: 16,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                    gap: 12,
+                    marginBottom: 20,
                   }}
                 >
-                  <p
-                    style={{
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: 9,
-                      color: '#888',
-                      margin: '0 0 6px',
-                      letterSpacing: '0.08em',
-                    }}
-                  >
-                    MEMBERS
-                  </p>
-
-                  <strong
-                    style={{
-                      fontFamily: 'Anton, sans-serif',
-                      fontSize: 24,
-                    }}
-                  >
-                    {selectedClub.members}
-                  </strong>
+                  {(selectedClub.memberCount ?? selectedClub.members) != null && (
+                    <div style={{ border: '2px solid #111', padding: 14 }}>
+                      <p style={{ fontFamily: 'Space Mono, monospace', fontSize: 9, color: '#888', margin: '0 0 6px', letterSpacing: '0.08em' }}>
+                        MEMBERS
+                      </p>
+                      <strong style={{ fontFamily: 'Anton, sans-serif', fontSize: 24 }}>
+                        {selectedClub.memberCount ?? selectedClub.members}
+                      </strong>
+                    </div>
+                  )}
+                  {(selectedClub.meetingFrequency || selectedClub.meetDay) && (
+                    <div style={{ border: '2px solid #111', padding: 14 }}>
+                      <p style={{ fontFamily: 'Space Mono, monospace', fontSize: 9, color: '#888', margin: '0 0 6px', letterSpacing: '0.08em' }}>
+                        MEETS
+                      </p>
+                      <strong style={{ fontFamily: 'Space Mono, monospace', fontSize: 13 }}>
+                        {selectedClub.meetingFrequency ?? selectedClub.meetDay}
+                      </strong>
+                    </div>
+                  )}
                 </div>
+              )}
 
-                <div
-                  style={{
-                    border: '2px solid #111',
-                    padding: 16,
-                  }}
-                >
-                  <p
-                    style={{
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: 9,
-                      color: '#888',
-                      margin: '0 0 6px',
-                      letterSpacing: '0.08em',
-                    }}
-                  >
-                    MEETS
-                  </p>
+              {(selectedClub.facultyCoordinator || (selectedClub.teamMembers?.length ?? 0) > 0) && (
+                <section style={{ borderTop: '2px dashed #bbb', paddingTop: 18, marginBottom: 20 }}>
+                  <h3 style={{ fontFamily: 'Space Mono, monospace', fontSize: 10, letterSpacing: '0.08em', margin: '0 0 10px' }}>
+                    CLUB TEAM
+                  </h3>
+                  {selectedClub.facultyCoordinator && (
+                    <p style={{ fontSize: 13, lineHeight: 1.6, margin: '0 0 8px' }}>
+                      <strong>Faculty coordinator:</strong> {selectedClub.facultyCoordinator}
+                    </p>
+                  )}
+                  {(selectedClub.teamMembers ?? []).map((member, index) => (
+                    <p key={`${member.name}-${member.role}-${index}`} style={{ fontSize: 13, lineHeight: 1.6, margin: '0 0 6px' }}>
+                      <strong>{member.name}</strong>{member.role ? ` — ${member.role}` : ''}
+                    </p>
+                  ))}
+                </section>
+              )}
 
-                  <strong
-                    style={{
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: 13,
-                    }}
-                  >
-                    {selectedClub.meetDay}
-                  </strong>
-                </div>
-              </div>
+              {(selectedClub.domains?.length ?? 0) > 0 && (
+                <section style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontFamily: 'Space Mono, monospace', fontSize: 10, letterSpacing: '0.08em', margin: '0 0 10px' }}>
+                    DOMAINS
+                  </h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {(selectedClub.domains ?? []).map((domain, index) => (
+                      <span key={`${domain}-${index}`} style={{ border: '1.5px solid #111', borderRadius: 999, padding: '5px 10px', fontSize: 12, fontWeight: 600 }}>
+                        {domain}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
 
-              <div
-                style={{
-                  borderTop: '2px dashed #bbb',
-                  paddingTop: 20,
-                }}
-              >
+              {isSafeExternalUrl(selectedClub.linkedinUrl) && (
+                <p style={{ fontSize: 13, margin: '0 0 20px' }}>
+                  <a href={selectedClub.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                    LinkedIn page ↗
+                  </a>
+                </p>
+              )}
+
+              <div style={{ borderTop: '2px dashed #bbb', paddingTop: 18 }}>
                 <p
                   style={{
                     fontFamily: 'Space Mono, monospace',
@@ -304,19 +375,50 @@ export default function DirectoryPage({ onNavigate: _onNavigate }: DirectoryPage
                 >
                   HOW TO JOIN
                 </p>
-
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: '#555',
-                    lineHeight: 1.6,
-                    margin: 0,
-                  }}
-                >
-                  {selectedClub.status === 'RECRUITING'
-                    ? 'This club is currently recruiting. Contact the club representatives or attend their next meeting to join.'
-                    : 'This club is currently closed for recruitment. Check back later for new openings.'}
-                </p>
+                {selectedClub.recruitmentStatus === 'Closed' ? (
+                  <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: 0 }}>
+                    This club is currently closed for recruitment. Check back later for new openings.
+                  </p>
+                ) : (
+                  <>
+                    {isRecruitmentOpen(selectedClub) && (
+                      <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 12px' }}>
+                        Recruitment is currently open.
+                      </p>
+                    )}
+                    {isRecruitmentOpen(selectedClub) && isSafeExternalUrl(selectedClub.recruitmentFormUrl) && (
+                      <a
+                        href={selectedClub.recruitmentFormUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-block',
+                          padding: '12px 18px',
+                          backgroundColor: '#E04F3D',
+                          color: '#fff',
+                          border: '2px solid #111',
+                          boxShadow: '4px 4px 0 #111',
+                          fontFamily: 'Space Mono, monospace',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        Apply to Join ↗
+                      </a>
+                    )}
+                    {isRecruitmentOpen(selectedClub) && !isSafeExternalUrl(selectedClub.recruitmentFormUrl) && (
+                      <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: 0 }}>
+                        The application form is not available yet.
+                      </p>
+                    )}
+                    {!isRecruitmentOpen(selectedClub) && (
+                      <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: 0 }}>
+                        Recruitment status has not been provided.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               <button

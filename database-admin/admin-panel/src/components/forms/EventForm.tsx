@@ -1,9 +1,14 @@
 import { FormEvent, useState } from "react";
-import type { Club, ClubEvent, ClubEventInput, EventCoordinator } from "@/types";
+import type { Club, ClubEvent, ClubEventInput, EventCategory, EventCoordinator } from "@/types";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
+import {
+  getEventCategoryLabel,
+  isCanonicalEventCategory,
+  shouldSubmitEventCategory,
+} from "@/lib/eventCategory";
 
 interface EventFormProps {
   initial?: ClubEvent;
@@ -41,6 +46,9 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
     description: initial?.description ?? "",
     date: initial?.date ?? "",
     venue: initial?.venue ?? "",
+    category: isCanonicalEventCategory(initial?.category)
+      ? initial.category
+      : "",
     clubId: initialClubId,
     bannerUrl: initial?.bannerUrl ?? "",
     capacity: initial?.capacity ?? 0,
@@ -59,10 +67,11 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
   const [registrationDeadlineInput, setRegistrationDeadlineInput] = useState(
     toLocalInputValue(initial?.registrationDeadline)
   );
+  const [categoryTouched, setCategoryTouched] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit({
+    const submission: ClubEventInput = {
       ...form,
       date: new Date(`${dateInput}T00:00:00`).toISOString(),
       registrationDeadline: registrationDeadlineInput
@@ -74,7 +83,13 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
           coordinator.phone.trim() ||
           coordinator.email.trim()
       ),
-    });
+    };
+
+    if (initial && !shouldSubmitEventCategory(initial.category, categoryTouched)) {
+      delete submission.category;
+    }
+
+    onSubmit(submission);
   }
 
   function updateCoordinator(index: number, field: keyof EventCoordinator, value: string) {
@@ -113,6 +128,31 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
         value={form.description}
         onChange={(e) => setForm({ ...form, description: e.target.value })}
       />
+      <Select
+        label="Event category"
+        name="category"
+        required={!initial || categoryTouched}
+        value={form.category ?? ""}
+        onChange={(e) => {
+          setCategoryTouched(true);
+          setForm({
+            ...form,
+            category: e.target.value as EventCategory,
+          });
+        }}
+      >
+        <option value="">Select a category</option>
+        <option value="Technical">Technical</option>
+        <option value="Non-Technical">Non-Technical</option>
+      </Select>
+      {initial && !isCanonicalEventCategory(initial.category) && (
+        <p className="text-xs text-amber-700">
+          {initial.category
+            ? `Current category “${initial.category}” is classified as ${getEventCategoryLabel(initial.category)}.`
+            : "This event has no category assigned and needs review."}{" "}
+          Choose a category to save a canonical value, or leave it unchanged to preserve it.
+        </p>
+      )}
       <Select
         label="Club"
         name="clubId"

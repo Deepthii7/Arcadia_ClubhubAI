@@ -24,7 +24,7 @@ Database: **MongoDB** (Atlas), accessed via **Mongoose**.
 | `_id`         | ObjectId | auto     | Primary key                                                   |
 | `name`        | String   | ✅        | Club display name                                              |
 | `description` | String   | ✅        | Shown on club directory / detail page                         |
-| `category`    | String   | ✅        | Enum: Technical, Cultural, Sports, Literary, Arts, Social, Other |
+| `category`    | String   | ✅        | New values: `Technical` or `Non-Technical`. Legacy values are normalized by consumers; unknown or ambiguous values require admin review. |
 | `logoUrl`     | String   | –        | Club logo image URL                                            |
 | `contactEmail`| String   | –        | Club contact email                                              |
 | `isActive`    | Boolean  | –        | Soft-disable a club without deleting it (default `true`)       |
@@ -40,6 +40,7 @@ Database: **MongoDB** (Atlas), accessed via **Mongoose**.
 | `description` | String   | ✅        | Event details                                          |
 | `date`        | Date     | ✅        | Event date/time. Indexed for upcoming-event queries   |
 | `venue`       | String   | ✅        | Location                                              |
+| `category`    | String   | –        | `Technical` or `Non-Technical`; legacy or missing values remain readable and require review when unclassified |
 | `clubId`      | ObjectId | ✅        | References `clubs._id`                                |
 | `bannerUrl`   | String   | –        | Event banner image URL                                |
 | `capacity`    | Number   | –        | Max registrations, `0` = unlimited (default `0`)      |

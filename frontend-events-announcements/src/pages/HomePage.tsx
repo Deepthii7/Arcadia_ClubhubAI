@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import api from '../api'
 import PinnedCard from '../components/PinnedCard'
 import { type Page, type EventData } from '../data'
+import { getClubCategoryLabel } from '../clubCategory'
+import { getEventCategoryLabel } from '../eventCategory'
 
 interface HomePageProps {
   onNavigate: (page: Page) => void
@@ -57,7 +59,7 @@ export default function HomePage({ onNavigate, onSelectEvent }: HomePageProps) {
           registrationDeadline: event.registrationDeadline || undefined,
           color: '#E04F3D',
           rotation: 0,
-          category: event.clubId?.category || 'EVENT',
+          category: event.category,
           tags: [],
         }))
 
@@ -185,7 +187,7 @@ export default function HomePage({ onNavigate, onSelectEvent }: HomePageProps) {
         }}
       >
         <div style={{ display: 'flex', gap: 10, maxWidth: 1200, margin: '0 auto', flexWrap: 'wrap' }}>
-          {['TECHNOLOGY', 'ARTS & CULTURE', 'SPORTS', 'ACADEMIC', 'MUSIC', 'SOCIAL IMPACT', 'GAMING', 'BUSINESS'].map(cat => (
+          {['Technical', 'Non-Technical'].map(cat => (
             <button
               key={cat}
               onClick={() => onNavigate('directory')}
@@ -223,7 +225,7 @@ export default function HomePage({ onNavigate, onSelectEvent }: HomePageProps) {
               headerContent={
                 <>
                   <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: club.color === '#111111' ? '#fff' : '#111' }}>
-                    {club.category}
+                    {getClubCategoryLabel(club.category, club)}
                   </span>
                   {club.status === 'RECRUITING' && (
                     <span style={{ backgroundColor: '#fff', border: '1.5px solid #111', padding: '2px 8px', fontSize: 9, fontFamily: 'Space Mono, monospace', fontWeight: 700, letterSpacing: '0.06em', color: '#111' }}>
@@ -277,7 +279,7 @@ export default function HomePage({ onNavigate, onSelectEvent }: HomePageProps) {
               headerContent={
                 <>
                   <span style={{ fontFamily: 'Space Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: ev.color === '#111111' ? '#fff' : '#111' }}>
-                    {ev.category}
+                    {getEventCategoryLabel(ev.category)}
                   </span>
                   <span style={{ backgroundColor: '#fff', border: '1.5px solid #111', padding: '2px 8px', fontSize: 9, fontFamily: 'Space Mono, monospace', fontWeight: 700, letterSpacing: '0.06em', color: '#111' }}>
                     RSVP OPEN

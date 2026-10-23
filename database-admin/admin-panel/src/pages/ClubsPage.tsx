@@ -8,6 +8,7 @@ import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Badge, EmptyState } from "@/components/ui/Feedback";
 import ClubForm from "@/components/forms/ClubForm";
+import { classifyClubCategory } from "@/lib/clubCategory";
 
 export default function ClubsPage() {
   const { data: clubs = [], isLoading } = useClubs();
@@ -29,10 +30,13 @@ export default function ClubsPage() {
     setFormOpen(true);
   }
 
-  function handleSubmit(data: Parameters<typeof createClub.mutate>[0]) {
+  function handleSubmit(
+    data: Parameters<typeof createClub.mutate>[0],
+    changedFields: Parameters<typeof updateClub.mutate>[0]["data"]
+  ) {
     if (editing) {
       updateClub.mutate(
-        { id: editing._id, data },
+        { id: editing._id, data: changedFields },
         { onSuccess: () => setFormOpen(false) }
       );
     } else {
@@ -82,7 +86,9 @@ export default function ClubsPage() {
                     <p className="max-w-xs truncate text-slate-400">{club.description}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge tone="brand">{club.category}</Badge>
+                    <Badge tone={classifyClubCategory(club.category, club) ? "brand" : "slate"}>
+                      {classifyClubCategory(club.category, club) ?? "Needs category review"}
+                    </Badge>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{club.contactEmail || "—"}</td>
                   <td className="px-4 py-3">

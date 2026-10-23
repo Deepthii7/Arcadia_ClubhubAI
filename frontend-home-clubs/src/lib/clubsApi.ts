@@ -1,4 +1,5 @@
 import { apiClient } from "./axiosClient";
+import { classifyClubCategory } from "./clubCategory";
 import type { Club, ClubCategory, ClubListParams } from "@/types/club";
 
 /**
@@ -13,27 +14,17 @@ interface BackendClub {
   logoUrl?: string;
   contactEmail?: string;
   isActive?: boolean;
+  domains?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
 
 /**
- * Maps backend category strings to frontend ClubCategory enum values.
- * Backend categories (from DB): "Tech", "Technical", "Cultural", "Sports", "Literary", "Arts", "Social", "Other"
- * Frontend: "Technology", "Arts & Culture", "Sports", "Academic", "Music", "Social Impact", "Gaming", "Business"
+ * Maps known legacy values to the two main categories. Unknown values stay
+ * unclassified so they can be reviewed instead of silently miscategorized.
  */
-function mapCategory(backendCategory: string): ClubCategory {
-  const categoryMap: Record<string, ClubCategory> = {
-    Tech: "Technology",
-    Technical: "Technology",
-    Cultural: "Arts & Culture",
-    Sports: "Sports",
-    Literary: "Academic",
-    Arts: "Arts & Culture",
-    Social: "Social Impact",
-    Other: "Business",
-  };
-  return categoryMap[backendCategory] || "Business";
+function mapCategory(backendClub: BackendClub): ClubCategory | null {
+  return classifyClubCategory(backendClub.category, backendClub);
 }
 
 /**
@@ -61,7 +52,7 @@ function transformClub(backendClub: BackendClub): Club {
     name: backendClub.name,
     tagline: "", // Backend doesn't provide tagline; use empty default
     description: backendClub.description,
-    category: mapCategory(backendClub.category),
+    category: mapCategory(backendClub),
     coverColor: "", // Use empty default; UI will handle gracefully
     memberCount: 0, // Backend doesn't provide member count
     founded: 0, // Backend doesn't provide founding year
@@ -93,13 +84,8 @@ export const clubsApi = {
     );
   }
 
-  if (params.category && params.category !== "All") {
-    results = results.filter((club) => {
-      if (club.name === "Coding Club" && params.category === "Academic") {
-        return true;
-      }
-      return club.category === params.category;
-    });
+  if (params.category && params.category !== "All Clubs") {
+    results = results.filter((club) => club.category === params.category);
   }
 
   return results;
@@ -118,7 +104,11 @@ export const clubsApi = {
   async categories(): Promise<ClubCategory[]> {
     // Fetch all clubs and extract unique categories from frontend-mapped values
     const { data } = await apiClient.get<BackendClub[]>("/clubs");
-    const categories = new Set(data.map((club) => mapCategory(club.category)));
-    return Array.from(categories) as ClubCategory[];
+    const categories = new Set(
+      data
+        .map((club) => mapCategory(club))
+        .filter((category): category is ClubCategory => category !== null)
+    );
+    return Array.from(categories);
   },
 };

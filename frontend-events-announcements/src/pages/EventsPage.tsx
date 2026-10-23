@@ -2,6 +2,12 @@ import api from '../api'
 import { useEffect, useState } from 'react'
 import PinnedCard from '../components/PinnedCard'
 import type { EventData } from '../data'
+import {
+  getEventCategoryLabel,
+  matchesEventCategory,
+  matchesEventSearch,
+  type EventCategoryFilter,
+} from '../eventCategory'
 function formatEventDate(date: string) {
   const parsedDate = new Date(date)
   if (Number.isNaN(parsedDate.getTime())) return 'Date to be announced'
@@ -17,7 +23,11 @@ function formatEventTime(startTime?: string, endTime?: string) {
   return endTime ? `${startTime} — ${endTime}` : startTime
 }
 
-const CATEGORIES = ['ALL', 'TECHNICAL' , 'CULTURAL', 'SPORTS', 'AI']
+const CATEGORIES = [
+  { value: 'ALL', label: 'All Events' },
+  { value: 'Technical', label: 'Technical' },
+  { value: 'Non-Technical', label: 'Non-Technical' },
+] as const
 
 interface EventsPageProps {
   onSelectEvent: (event: EventData) => void
@@ -25,7 +35,7 @@ interface EventsPageProps {
 
 export default function EventsPage({ onSelectEvent }: EventsPageProps) {
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('ALL')
+  const [activeCategory, setActiveCategory] = useState<EventCategoryFilter>('ALL')
   const [events, setEvents] = useState<EventData[]>([])
 
   useEffect(() => {
@@ -36,7 +46,7 @@ export default function EventsPage({ onSelectEvent }: EventsPageProps) {
         response.data.map((event: any) => ({
           id: event._id,
           title: event.title,
-          category: event.category || event.clubId?.category || 'GENERAL',
+          category: event.category,
           org: event.clubId?.name || 'Club information unavailable',
           description: event.description || '',
           date: event.date,
@@ -64,13 +74,10 @@ export default function EventsPage({ onSelectEvent }: EventsPageProps) {
   }, [])
 
   const filtered = events.filter(ev => {
-    const matchCat = activeCategory === 'ALL' || ev.category.toUpperCase() === activeCategory
-    const matchSearch =
-      ev.title.toLowerCase().includes(search.toLowerCase()) ||
-      ev.category.toLowerCase().includes(search.toLowerCase()) ||
-      ev.org.toLowerCase().includes(search.toLowerCase()) ||
-      ev.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
-    return matchCat && matchSearch
+    return (
+      matchesEventCategory(ev.category, activeCategory) &&
+      matchesEventSearch(ev, search)
+    )
   })
 
   return (
@@ -117,11 +124,11 @@ export default function EventsPage({ onSelectEvent }: EventsPageProps) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
         {CATEGORIES.map(cat => (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`filter-pill ${activeCategory === cat ? 'active' : ''}`}
+            key={cat.value}
+            onClick={() => setActiveCategory(cat.value)}
+            className={`filter-pill ${activeCategory === cat.value ? 'active' : ''}`}
           >
-            {cat}
+            {cat.label}
           </button>
         ))}
       </div>
@@ -178,7 +185,7 @@ export default function EventsPage({ onSelectEvent }: EventsPageProps) {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {ev.category}
+                    {getEventCategoryLabel(ev.category)}
                   </span>
                 </div>
               </>
