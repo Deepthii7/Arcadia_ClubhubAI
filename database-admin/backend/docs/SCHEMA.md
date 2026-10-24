@@ -123,6 +123,21 @@ Asia/Kolkata time.
 The response contains `status`, `conflicts`, `alternatives`, `explanations`,
 and `error`. `status` is `available`, `conflict_found`, `no_slot_found`, or
 `error`. Alternatives are same-day 30-minute-start-grid slots, with a
-15-minute buffer, for conflicts sharing both the venue and club. Events block
-unless their status is explicitly `draft`, `cancelled`, or `canceled` (the
-schema does not currently define event status).
+15-minute buffer, for conflicts sharing both the venue and club. Each slot
+includes `source` (`ai` or `rules`) and a short `reason`. Events block unless
+their status is explicitly `draft`, `cancelled`, or `canceled` (the schema
+does not currently define event status).
+
+When `GEMINI_API_KEY` is configured, the server may send Gemini the proposed
+event's date/time/duration, venue and scope, plus same-day events reduced to
+date, start/end, status, venue and scope. Event names, descriptions, IDs,
+contacts, and secrets are excluded. Every AI slot is checked against the
+deterministic scheduler before it is returned. Missing keys, provider errors,
+timeouts, invalid output, and unverified suggestions use deterministic
+alternatives instead. The server never requires paid billing; free-tier quota
+and eligibility are controlled by Google and may change.
+
+To obtain a key, use [Google AI Studio API keys](https://aistudio.google.com/apikey)
+and configure `GEMINI_API_KEY` in the backend environment (never the frontend).
+Review Google's current [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing)
+and free-tier terms; do not enable paid billing for this integration.

@@ -365,6 +365,9 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
                           </span>
                           {" · "}Verified against the current event schedule.
                         </p>
+                        {slot.reason && (
+                          <p className="mt-1 text-xs text-slate-600">{slot.reason}</p>
+                        )}
                       </div>
                       <Button
                         type="button"
@@ -380,13 +383,6 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
               </div>
             ) : (
               <p className="text-sm text-slate-600">No alternative slot available.</p>
-            )}
-            {advisorResult.explanations.length > 0 && (
-              <ul className="space-y-1 text-xs text-slate-500">
-                {advisorResult.explanations.map((explanation, index) => (
-                  <li key={`${index}-${explanation}`}>{explanation}</li>
-                ))}
-              </ul>
             )}
           </div>
         )}

@@ -5,6 +5,10 @@ const {
   explainConflicts,
   findAlternativeSlots,
 } = require("../utils/eventScheduling");
+const {
+  getAiSlotSuggestions,
+  validateAiSuggestions,
+} = require("./geminiSlotAdvisor");
 
 const OBJECT_ID_PATTERN = /^[\da-f]{24}$/i;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -129,13 +133,20 @@ function createProposedEvent(query) {
   };
 }
 
-async function adviseEvent(query, EventModel) {
+async function adviseEvent(query, EventModel, options = {}) {
   const proposed = createProposedEvent(query);
 
   detectConflicts(proposed, []);
-  const existingEvents = await EventModel.find().lean();
+  const calendarDate = new Date(`${proposed.date}T00:00:00.000Z`);
+  const fromDate = new Date(calendarDate.getTime() - 24 * 60 * 60 * 1000);
+  const toDate = new Date(calendarDate.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const existingEvents = await EventModel.find({
+    date: { $gte: fromDate, $lt: toDate },
+  })
+    .select("title date startTime endTime status venue clubId")
+    .lean();
   const conflicts = detectConflicts(proposed, existingEvents);
-  const alternatives =
+  const deterministicResult =
     conflicts.length > 0
       ? findAlternativeSlots(proposed, existingEvents)
       : {
@@ -145,14 +156,68 @@ async function adviseEvent(query, EventModel) {
           timezone: DEFAULTS.timezone,
           slots: [],
         };
+  const deterministicAlternatives = deterministicResult.slots.map((slot) => ({
+    ...slot,
+    reason: `Available within operating hours and respects the same-venue, same-club conflict and buffer rules.`,
+    source: "rules",
+  }));
+  let alternatives = deterministicAlternatives;
+  let sourceExplanations = [];
+
+  if (deterministicAlternatives.length > 0 && conflicts.length > 0) {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: DEFAULTS.timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const proposedClubId = clubIdValue(proposed.clubId);
+    const proposedVenue = normalizeVenue(proposed.venue);
+    const schedule = existingEvents
+      .filter((event) => {
+        const clubId = clubIdValue(event.clubId);
+        return (
+          localDateString(event.date, formatter) === proposed.date &&
+          normalizeVenue(event.venue) === proposedVenue &&
+          clubId === proposedClubId
+        );
+      })
+      .map((event) => ({
+        date: localDateString(event.date, formatter),
+        start: event.startTime ?? "",
+        end: event.endTime ?? "",
+        status: typeof event.status === "string" ? event.status : "unspecified",
+        venue: String(event.venue ?? ""),
+        scope: "same venue and same club",
+      }));
+    const suggestions = await getAiSlotSuggestions({
+      apiKey: options.apiKey ?? process.env.GEMINI_API_KEY,
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs,
+      proposed,
+      schedule,
+    });
+    const aiAlternatives = validateAiSuggestions(
+      suggestions,
+      deterministicAlternatives
+    );
+
+    if (aiAlternatives.length > 0) {
+      alternatives = aiAlternatives;
+      sourceExplanations = aiAlternatives.map((slot) => slot.reason);
+    }
+  }
+
   const alternativeExplanations =
-    conflicts.length > 0 ? explainAlternativeSlots(alternatives) : [];
+    conflicts.length > 0 && sourceExplanations.length === 0
+      ? explainAlternativeSlots(deterministicResult)
+      : sourceExplanations;
 
   return {
     status:
       conflicts.length === 0
         ? "available"
-        : alternatives.status === "no_slot_found"
+        : deterministicResult.status === "no_slot_found"
           ? "no_slot_found"
           : "conflict_found",
     conflicts: conflicts.map((conflict) => ({
@@ -165,7 +230,7 @@ async function adviseEvent(query, EventModel) {
       directOverlap: conflict.directOverlap,
       bufferMinutes: conflict.bufferMinutes,
     })),
-    alternatives: alternatives.slots,
+    alternatives,
     explanations: [
       ...explainConflicts(conflicts),
       ...(Array.isArray(alternativeExplanations)
@@ -174,6 +239,30 @@ async function adviseEvent(query, EventModel) {
     ],
     error: null,
   };
+}
+
+function clubIdValue(value) {
+  const id = value && typeof value === "object" ? value._id : value;
+  return id === undefined || id === null ? "" : String(id);
+}
+
+function normalizeVenue(value) {
+  return String(value ?? "").trim().toLocaleLowerCase();
+}
+
+function localDateString(value, formatter) {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const parts = Object.fromEntries(
+    formatter
+      .formatToParts(parsed)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value: partValue }) => [type, partValue])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 module.exports = { AdvisorInputError, adviseEvent };

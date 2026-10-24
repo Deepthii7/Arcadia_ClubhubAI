@@ -27,7 +27,8 @@ export interface EventAdvisorAlternative {
   endTime: string;
   durationMinutes: number;
   timezone: string;
-  source?: "ai" | "rule-based";
+  reason?: string;
+  source?: "ai" | "rules";
 }
 
 export interface EventAdvisorResponse {

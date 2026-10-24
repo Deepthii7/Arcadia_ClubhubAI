@@ -113,6 +113,29 @@ describe("EventForm scheduling advisor", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("shows both the AI-verified and rule-based source labels", async () => {
+    advise.mockResolvedValue({
+      ...conflictResponse,
+      alternatives: [
+        conflictResponse.alternatives[0],
+        {
+          ...conflictResponse.alternatives[0],
+          startTime: "13:00",
+          endTime: "14:00",
+          source: "ai",
+          reason: "The afternoon period is clear for a focused session.",
+        },
+      ],
+    });
+    renderForm();
+
+    fireEvent.click(screen.getByRole("button", { name: "Check availability" }));
+
+    expect(await screen.findByText("Rule-based")).toBeTruthy();
+    expect(screen.getByText("AI-suggested · verified")).toBeTruthy();
+    expect(screen.getByText("The afternoon period is clear for a focused session.")).toBeTruthy();
+  });
+
   it("shows the no-conflict response only after a successful advisor response", async () => {
     advise.mockResolvedValue(availableResponse);
     renderForm();

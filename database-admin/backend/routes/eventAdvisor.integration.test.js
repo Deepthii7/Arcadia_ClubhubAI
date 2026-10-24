@@ -6,8 +6,17 @@ const eventRoutes = require("./eventRoutes");
 
 const CLUB_ID = "507f1f77bcf86cd799439011";
 const originalFind = Event.find;
+const originalGeminiApiKey = process.env.GEMINI_API_KEY;
 let server;
 let baseUrl;
+
+function findEvents(events) {
+  return {
+    select() {
+      return { lean: async () => events };
+    },
+  };
+}
 
 function validQuery(overrides = {}) {
   return {
@@ -42,6 +51,7 @@ function advisorUrl(query = validQuery()) {
 }
 
 before(async () => {
+  process.env.GEMINI_API_KEY = "";
   const app = express();
   app.use(express.json());
   app.use("/api/admin/events", eventRoutes);
@@ -55,6 +65,11 @@ before(async () => {
 
 after(async () => {
   Event.find = originalFind;
+  if (originalGeminiApiKey === undefined) {
+    delete process.env.GEMINI_API_KEY;
+  } else {
+    process.env.GEMINI_API_KEY = originalGeminiApiKey;
+  }
   if (server) {
     await new Promise((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve()))
@@ -63,7 +78,7 @@ after(async () => {
 });
 
 test("preserves public event-route access for unauthenticated advisor requests", async () => {
-  Event.find = () => ({ lean: async () => [] });
+  Event.find = () => findEvents([]);
 
   const response = await fetch(advisorUrl());
   const body = await response.json();
@@ -97,7 +112,7 @@ test("returns a stable validation error for invalid date, time, duration, or id"
 });
 
 test("reports a conflict and matching alternative slots", async () => {
-  Event.find = () => ({ lean: async () => [event()] });
+  Event.find = () => findEvents([event()]);
 
   const response = await fetch(advisorUrl());
   const body = await response.json();
@@ -112,7 +127,7 @@ test("reports a conflict and matching alternative slots", async () => {
 });
 
 test("reports no conflict without proposing unnecessary alternatives", async () => {
-  Event.find = () => ({ lean: async () => [] });
+  Event.find = () => findEvents([]);
 
   const response = await fetch(advisorUrl());
   const body = await response.json();
@@ -126,9 +141,13 @@ test("reports no conflict without proposing unnecessary alternatives", async () 
 
 test("reports no_slot_found when all same-day operating hours are occupied", async () => {
   Event.find = () => ({
-    lean: async () => [
-      event({ startTime: "08:00", endTime: "22:00", title: "All-day event" }),
-    ],
+    select() {
+      return {
+        lean: async () => [
+          event({ startTime: "08:00", endTime: "22:00", title: "All-day event" }),
+        ],
+      };
+    },
   });
 
   const response = await fetch(
@@ -144,8 +163,12 @@ test("reports no_slot_found when all same-day operating hours are occupied", asy
 
 test("returns a visible stable error when event lookup fails", async () => {
   Event.find = () => ({
-    lean: async () => {
-      throw new Error("simulated data-layer failure");
+    select() {
+      return {
+        lean: async () => {
+          throw new Error("simulated data-layer failure");
+        },
+      };
     },
   });
   const originalConsoleError = console.error;
