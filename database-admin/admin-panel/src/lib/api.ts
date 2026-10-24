@@ -10,6 +10,34 @@ import type {
   Registration,
 } from "@/types";
 
+export interface EventAdvisorConflict {
+  eventId: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  venue: string;
+  directOverlap: boolean;
+  bufferMinutes: number;
+}
+
+export interface EventAdvisorAlternative {
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  timezone: string;
+  source?: "ai" | "rule-based";
+}
+
+export interface EventAdvisorResponse {
+  status: "available" | "conflict_found" | "no_slot_found" | "error";
+  conflicts: EventAdvisorConflict[];
+  alternatives: EventAdvisorAlternative[];
+  explanations: string[];
+  error: { code: string; message: string } | null;
+}
+
 // ---- Clubs ----
 export const clubsApi = {
   list: () => axiosClient.get<Club[]>("/clubs").then((r) => r.data),
@@ -31,6 +59,16 @@ export const eventsApi = {
   remove: (id: string) => axiosClient.delete(`/events/${id}`).then((r) => r.data),
   registrations: (eventId: string) =>
     axiosClient.get<Registration[]>(`/events/${eventId}/registrations`).then((r) => r.data),
+  advise: (params: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    venue: string;
+    clubId: string;
+  }) =>
+    axiosClient
+      .get<EventAdvisorResponse>("/events/advisor", { params })
+      .then((r) => r.data),
 };
 
 // ---- Announcements ----

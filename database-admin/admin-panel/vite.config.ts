@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -11,5 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+  },
+  test: {
+    environment: "jsdom",
   },
 });

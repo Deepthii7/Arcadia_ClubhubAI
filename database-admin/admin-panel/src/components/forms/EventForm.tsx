@@ -1,9 +1,15 @@
 import { FormEvent, useState } from "react";
+import axios from "axios";
 import type { Club, ClubEvent, ClubEventInput, EventCategory, EventCoordinator } from "@/types";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
+import {
+  eventsApi,
+  type EventAdvisorAlternative,
+  type EventAdvisorResponse,
+} from "@/lib/api";
 import {
   getEventCategoryLabel,
   isCanonicalEventCategory,
@@ -68,6 +74,83 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
     toLocalInputValue(initial?.registrationDeadline)
   );
   const [categoryTouched, setCategoryTouched] = useState(false);
+  const [advisorState, setAdvisorState] = useState<"idle" | "loading" | "error" | "result">("idle");
+  const [advisorResult, setAdvisorResult] = useState<EventAdvisorResponse | null>(null);
+  const [advisorError, setAdvisorError] = useState("");
+
+  const parsedDate = new Date(`${dateInput}T00:00:00.000Z`);
+  const validDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(dateInput) &&
+    !Number.isNaN(parsedDate.getTime()) &&
+    parsedDate.toISOString().slice(0, 10) === dateInput;
+  const validStartTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(form.startTime ?? "");
+  const validEndTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(form.endTime ?? "");
+  const advisorInputIsValid =
+    validDate &&
+    validStartTime &&
+    validEndTime &&
+    Number(form.endTime?.replace(":", "")) > Number(form.startTime?.replace(":", "")) &&
+    !!form.venue.trim() &&
+    !!form.clubId;
+
+  function clearAdvisorResult() {
+    setAdvisorState("idle");
+    setAdvisorResult(null);
+    setAdvisorError("");
+  }
+
+  function updateSchedulingField(
+    field: "startTime" | "endTime" | "venue" | "clubId",
+    value: string
+  ) {
+    setForm((current) => ({ ...current, [field]: value }));
+    clearAdvisorResult();
+  }
+
+  async function requestSchedulingAdvice() {
+    if (
+      !advisorInputIsValid ||
+      !form.startTime ||
+      !form.endTime ||
+      advisorState === "loading"
+    ) {
+      return;
+    }
+
+    setAdvisorState("loading");
+    setAdvisorResult(null);
+    setAdvisorError("");
+    try {
+      const result = await eventsApi.advise({
+        date: dateInput,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        venue: form.venue.trim(),
+        clubId: form.clubId,
+      });
+      if (result.status === "error") {
+        throw new Error(result.error?.message || "Scheduling advice could not be loaded.");
+      }
+      setAdvisorResult(result);
+      setAdvisorState("result");
+    } catch (error) {
+      const message = axios.isAxiosError<{ error?: { message?: string } }>(error)
+        ? error.response?.data?.error?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Scheduling advice could not be loaded.";
+      setAdvisorError(message);
+      setAdvisorState("error");
+    }
+  }
+
+  function selectAlternative(slot: EventAdvisorAlternative) {
+    setForm((current) => ({
+      ...current,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    }));
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -158,7 +241,7 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
         name="clubId"
         required
         value={form.clubId}
-        onChange={(e) => setForm({ ...form, clubId: e.target.value })}
+        onChange={(e) => updateSchedulingField("clubId", e.target.value)}
       >
         {clubs.map((c) => (
           <option key={c._id} value={c._id}>
@@ -173,31 +256,162 @@ export default function EventForm({ initial, clubs, onSubmit, onCancel, submitti
           type="date"
           required
           value={dateInput}
-          onChange={(e) => setDateInput(e.target.value)}
+          onChange={(e) => {
+            setDateInput(e.target.value);
+            clearAdvisorResult();
+          }}
         />
         <Input
           label="Start time (optional)"
           name="startTime"
           type="time"
           value={form.startTime ?? ""}
-          onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+          onChange={(e) => updateSchedulingField("startTime", e.target.value)}
         />
         <Input
           label="End time (optional)"
           name="endTime"
           type="time"
           value={form.endTime ?? ""}
-          onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+          onChange={(e) => updateSchedulingField("endTime", e.target.value)}
         />
         <Input
           label="Venue"
           name="venue"
           required
           value={form.venue}
-          onChange={(e) => setForm({ ...form, venue: e.target.value })}
+          onChange={(e) => updateSchedulingField("venue", e.target.value)}
           placeholder="e.g. Main Auditorium"
         />
       </div>
+      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4" aria-live="polite">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Scheduling advisor</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Check this date, time, venue, and club against the current event schedule.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={requestSchedulingAdvice}
+            disabled={!advisorInputIsValid || advisorState === "loading"}
+          >
+            {advisorState === "loading" ? "Checking..." : "Check availability"}
+          </Button>
+        </div>
+
+        {advisorState === "loading" && (
+          <p className="mt-3 text-sm text-slate-600" role="status">
+            Loading scheduling advice...
+          </p>
+        )}
+
+        {advisorState === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3" role="alert">
+            <p className="text-sm text-red-700">{advisorError}</p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={requestSchedulingAdvice}
+              disabled={!advisorInputIsValid}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {advisorState === "result" && advisorResult?.status === "available" && (
+          <p className="mt-3 text-sm text-green-700">
+            No conflicts were found for this event.
+          </p>
+        )}
+
+        {advisorState === "result" && advisorResult?.status === "conflict_found" && (
+          <div className="mt-3 space-y-3">
+            <div>
+              <h4 className="text-sm font-medium text-slate-800">Conflicts</h4>
+              <ul className="mt-1 list-inside list-disc space-y-1 text-sm text-amber-800">
+                {advisorResult.conflicts.map((conflict) => (
+                  <li key={`${conflict.eventId}-${conflict.startTime}`}>
+                    {conflict.title || "Existing event"} — {conflict.date},{" "}
+                    {conflict.startTime}–{conflict.endTime} at {conflict.venue}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {advisorResult.alternatives.length > 0 ? (
+              <div>
+                <h4 className="text-sm font-medium text-slate-800">Alternative slots</h4>
+                <ul className="mt-2 space-y-2">
+                  {advisorResult.alternatives.map((slot) => (
+                    <li
+                      key={`${slot.date}-${slot.startTime}-${slot.endTime}`}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">
+                          {slot.date} · {slot.startTime}–{slot.endTime}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          <span className="font-medium text-slate-600">
+                            {slot.source === "ai"
+                              ? "AI-suggested · verified"
+                              : "Rule-based"}
+                          </span>
+                          {" · "}Verified against the current event schedule.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => selectAlternative(slot)}
+                      >
+                        Use this slot
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600">No alternative slot available.</p>
+            )}
+            {advisorResult.explanations.length > 0 && (
+              <ul className="space-y-1 text-xs text-slate-500">
+                {advisorResult.explanations.map((explanation, index) => (
+                  <li key={`${index}-${explanation}`}>{explanation}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {advisorState === "result" && advisorResult?.status === "no_slot_found" && (
+          <div className="mt-3 space-y-2">
+            {advisorResult.conflicts.length > 0 && (
+              <ul className="list-inside list-disc space-y-1 text-sm text-amber-800">
+                {advisorResult.conflicts.map((conflict) => (
+                  <li key={`${conflict.eventId}-${conflict.startTime}`}>
+                    {conflict.title || "Existing event"} — {conflict.date},{" "}
+                    {conflict.startTime}–{conflict.endTime} at {conflict.venue}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-sm text-slate-600">No alternative slot available.</p>
+            {advisorResult.explanations.map((explanation, index) => (
+              <p className="text-xs text-slate-500" key={`${index}-${explanation}`}>
+                {explanation}
+              </p>
+            ))}
+          </div>
+        )}
+      </section>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Select
           label="Participation type (optional)"
