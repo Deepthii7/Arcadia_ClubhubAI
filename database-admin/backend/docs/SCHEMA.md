@@ -98,6 +98,7 @@ Base URL: `http://localhost:5050/api/admin`
 | PUT    | `/clubs/:id`                        | Update a club                           |
 | DELETE | `/clubs/:id`                        | Delete a club                           |
 | GET    | `/events`                           | List all events (club populated)        |
+| GET    | `/events/advisor`                   | Read-only scheduling advice for an event |
 | GET    | `/events/:id`                       | Get one event                           |
 | POST   | `/events`                           | Create an event                         |
 | PUT    | `/events/:id`                       | Update an event                         |
@@ -110,3 +111,18 @@ Base URL: `http://localhost:5050/api/admin`
 | GET    | `/registrations`                    | List all registrations, every event     |
 | DELETE | `/registrations/:id`                | Remove a registration                   |
 | GET    | `/dashboard`                        | Counts + upcoming events + recent regs  |
+
+### Scheduling advisor
+
+`GET /events/advisor` requires `date` (`YYYY-MM-DD`), `startTime` (`HH:mm`),
+`venue`, and `clubId` (a 24-character ObjectId). Supply `endTime` (`HH:mm`)
+or `durationMinutes`; duration defaults to 60 minutes, and when both are
+provided they must agree. The proposed event must fit within 08:00–22:00
+Asia/Kolkata time.
+
+The response contains `status`, `conflicts`, `alternatives`, `explanations`,
+and `error`. `status` is `available`, `conflict_found`, `no_slot_found`, or
+`error`. Alternatives are same-day 30-minute-start-grid slots, with a
+15-minute buffer, for conflicts sharing both the venue and club. Events block
+unless their status is explicitly `draft`, `cancelled`, or `canceled` (the
+schema does not currently define event status).
