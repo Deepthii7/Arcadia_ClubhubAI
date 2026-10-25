@@ -1,6 +1,24 @@
-const API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const { generateJsonContent } = require("./geminiClient");
 const REASON_MAX_LENGTH = 240;
+const SLOT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    slots: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          date: { type: "STRING" },
+          start: { type: "STRING" },
+          end: { type: "STRING" },
+          reason: { type: "STRING" },
+        },
+        required: ["date", "start", "end", "reason"],
+      },
+    },
+  },
+  required: ["slots"],
+};
 
 function isPlainReason(reason) {
   return (
@@ -102,74 +120,19 @@ function promptForSlots(proposed, schedule) {
 
 async function getAiSlotSuggestions({
   apiKey,
-  fetchImpl = globalThis.fetch,
   timeoutMs = 4500,
   proposed,
   schedule,
+  fetchImpl,
 }) {
-  if (!apiKey || typeof fetchImpl !== "function") return null;
-
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-    const response = await fetchImpl(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: promptForSlots(proposed, schedule) }],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              slots: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    date: { type: "STRING" },
-                    start: { type: "STRING" },
-                    end: { type: "STRING" },
-                    reason: { type: "STRING" },
-                  },
-                  required: ["date", "start", "end", "reason"],
-                },
-              },
-            },
-            required: ["slots"],
-          },
-        },
-      }),
-    });
-
-    if (!response.ok) return null;
-    const body = await response.json();
-    const text = body?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text)
-      .filter((part) => typeof part === "string")
-      .join("");
-    if (!text) return null;
-    return parseSuggestions(text);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-    if (timedOut) controller.abort();
-  }
+  const text = await generateJsonContent({
+    apiKey,
+    fetchImpl,
+    timeoutMs,
+    prompt: promptForSlots(proposed, schedule),
+    responseSchema: SLOT_RESPONSE_SCHEMA,
+  });
+  return text ? parseSuggestions(text) : null;
 }
 
 function validateAiSuggestions(suggestions, deterministicSlots) {
